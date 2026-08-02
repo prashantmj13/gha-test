@@ -1,24 +1,22 @@
 name: Terraform Validate
-
 on:
-    workflow_dispatch:
-    push:
-        branches: ["main"]
-
+  workflow_dispatch:
+  push:
+    branches: ["main"]
 jobs:
-    validate:
-        runs-on: ububtu-latest
-        steps:
-            - name: Checkout Code
-              uses: actions/checkout@v4
+  terraform-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-            - name: Setup Terraform
-              uses: actions/setup-terraform@v3
-              with:
-                terraform_version: 1.7.6
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with: 
+          terraform_version: "1.9.5"
 
-            - name: Terraform Init
-              run: terraform init -backend=false
+      - name: Terraform Init
+        run: terraform init -backend=false
 
-            - name: Terraform Validate
-              run: terraform validate
+      - name: Terraform Validate
+        run: terraform validate
