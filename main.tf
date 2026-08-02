@@ -21,20 +21,20 @@ terraform {
 }
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project = "cloud-ids-489610"
+  region  = "asia-southeast1"
 }
 
 resource "google_compute_network" "vpc" {
-  name                    = var.vpc_name
+  name                    = "qa-gha-vpc"
   auto_create_subnetworks = false
   routing_mode            = "REGIONAL"
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = var.subnet_name
-  ip_cidr_range = var.subnet_cidr
-  region        = var.region
+  name          = "qa-gha-subnet"
+  ip_cidr_range = "10.10.0.0/24"
+  region        = "asia-southeast1"
   network       = google_compute_network.vpc.id
 
   # Handy for later: private Google API access without a NAT/IGW.
