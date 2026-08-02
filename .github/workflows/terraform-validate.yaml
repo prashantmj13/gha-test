@@ -1,50 +1,84 @@
-name: Terraform Validate
+name: Terraform GCP
+
 on:
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-    paths:
-      - "**/*.tf"
-      - ".github/workflows/*.yaml"
+    inputs:
+      environment:
+        description: "Environment to target"
+        required: true
+        default: "qa"
+        type: choice
+        options:
+          - qa
+          - prod
+      action:
+        description: "Terraform action to run"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+# id-token: write is what lets GitHub mint the OIDC token for this run.
+# Without it, the auth step below has nothing to present to GCP.
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_WORKING_DIR: "."
+
 jobs:
-  terraform-init:
+  terraform:
+    name: Terraform ${{ inputs.action }} (${{ inputs.environment }})
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+          # No credentials_json, no key, nothing to rotate or leak.
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
-        with: 
-          terraform_version: "1.9.5"
+        with:
+          terraform_version: "1.7.5"
 
-      - name: Terraform Init
-        run: terraform init -backend=false
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
 
-  terraform-plan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Terraform validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with: 
-          terraform_version: "1.9.5"
+      - name: Terraform plan
+        if: ${{ inputs.action == 'plan' }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -input=false -out=tfplan
 
-      - name: Terraform Init
-        run: terraform init -backend=false
-
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v4
+      - name: Terraform Artifact
+        if: ${{ inputs.action == 'plan' }}
+        uses: actions/upload-artifact@v3
         with:
           name: tfplan
-          path: tfplan
+
+      - name: Terraform apply
+        if: ${{ inputs.action == 'apply' }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -input=false -out=tfplan -auto-approve
+
+      - name: Terraform destroy
+        if: ${{ inputs.action == 'destroy' }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform destroy -input=false -auto-approve
