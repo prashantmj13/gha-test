@@ -1,8 +1,16 @@
 name: Terraform Validate
 on:
   workflow_dispatch:
-  push:
-    branches: ["main"]
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - "**/*.tf"
+      - ".github/workflows/*.yaml"
 jobs:
   terraform-init:
     runs-on: ubuntu-latest
