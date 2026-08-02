@@ -72,6 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
+          path: tfplan
 
       - name: Terraform apply
         if: ${{ inputs.action == 'apply' }}
